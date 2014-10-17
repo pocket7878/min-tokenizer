@@ -6,7 +6,7 @@ import Data.Set
 import qualified Data.List as L
 import Control.Monad
 import Control.Lens
-import qualified DFA as D (State(State), Input(Input), Rule(Rule), DFA, mkDFA)
+import qualified DFA as D (State(State), Input(Input), Rule(Rule), Label(Label), GoalState(GoalState), Priority, DFA, mkDFA)
 import qualified Debug.Trace as De
 
 data Epsilon = Epsilon deriving (Show, Eq)
@@ -40,15 +40,15 @@ eclose'' s rs acc
 eclose :: (Eq a) => [D.State a] -> [Rule a b] -> [D.State a]
 eclose s rs = eclose'' s rs s
 
-data EpsilonNFA a b = EpsilonNFA {
+data EpsilonNFA a b c = EpsilonNFA {
                 _fstState :: D.State a
                 ,_currState :: [D.State a]
                 ,_rules :: [Rule a b]
-                ,_goalState :: [D.State a]
+                ,_goalState :: [D.GoalState a c]
                 } deriving (Show)
 $(makeLenses ''EpsilonNFA)
 
-mkEpsilonNFA :: (Eq a) => D.State a -> [Rule a b] -> [D.State a] -> EpsilonNFA a b
+mkEpsilonNFA :: (Eq a) => D.State a -> [Rule a b] -> [D.GoalState a c] -> EpsilonNFA a b c
 mkEpsilonNFA s rs gs = EpsilonNFA {
                 _fstState = s
                 ,_currState = eclose [s] rs
@@ -56,25 +56,25 @@ mkEpsilonNFA s rs gs = EpsilonNFA {
                 ,_goalState = gs
                 }
 
-updateEpsilonNFA :: (Eq a, Eq b) => EpsilonNFA a b -> D.Input b -> Maybe (EpsilonNFA a b)
+updateEpsilonNFA :: (Eq a, Eq b) => EpsilonNFA a b c -> D.Input b -> Maybe (EpsilonNFA a b c)
 updateEpsilonNFA enfa i = updateEpsilonNFA' enfa nxtStates
   where
     rs = concat $ L.map (\s -> matchRule i s (enfa^.rules))
                         (enfa^.currState)
     nxtStates = eclose (L.map (\(Rule _ _ ns) -> ns) rs) (enfa^.rules)
-    updateEpsilonNFA' :: (Eq a) => EpsilonNFA a b -> [D.State a] -> Maybe (EpsilonNFA a b)
+    updateEpsilonNFA' :: (Eq a) => EpsilonNFA a b c -> [D.State a] -> Maybe (EpsilonNFA a b c)
     updateEpsilonNFA' _ [] = Nothing
     updateEpsilonNFA' nfa ns = Just (nfa&currState.~ns)
 
-runEpsilonNFA :: (Eq a, Eq b) => EpsilonNFA a b -> [D.Input b] -> Maybe (EpsilonNFA a b)
+runEpsilonNFA :: (Eq a, Eq b) => EpsilonNFA a b c -> [D.Input b] -> Maybe (EpsilonNFA a b c)
 runEpsilonNFA enfa is = foldM updateEpsilonNFA enfa is
 
-accept :: (Eq a, Eq b) => EpsilonNFA a b -> [b] -> Bool
+accept :: (Eq a, Eq b) => EpsilonNFA a b c -> [b] -> Bool
 accept enfa is = accept' res
   where
     res = runEpsilonNFA enfa $ L.map (\x -> (D.Input x)) is
     accept' Nothing = False
-    accept' (Just f) = L.any (\s -> elem s (f^.goalState)) (f^.currState)
+    accept' (Just f) = L.any (\s -> (L.any (\(D.GoalState gs _ _) -> gs == s) (f^.goalState))) (f^.currState)
 
 {-
 - Convert Epsilon-NFA -> DFA
@@ -102,8 +102,14 @@ genDFARule'' rs acc visitedStates tmpStates
     generatedRules = concat $ L.map (\x -> genDFARule' x rs) tmpStates
     newTmpStates = L.filter (\x -> not (elem x visitedStates)) $ L.map (\(D.Rule _ _ x) -> x) generatedRules
 
-genDFA :: forall a b. (Ord a) => EpsilonNFA a b -> D.DFA (Set a) b
-genDFA enfa = D.mkDFA fst dfaRules dfaGoal
+genDFAGoalFromDFAState :: (Eq a, Eq b, Ord a) => D.State (Set a) -> [D.GoalState a b] -> D.GoalState (Set a) b
+genDFAGoalFromDFAState (D.State as) gs = D.GoalState (D.State as) goalPriority goalLabel
+  where
+    goalStates = L.filter (\(D.GoalState (D.State g) _ _) -> member g as) gs
+    (D.GoalState _ goalPriority goalLabel) = maximum goalStates
+
+genDFA :: forall a b c. (Ord a, Eq c) => EpsilonNFA a b c -> D.DFA (Set a) b c
+genDFA enfa = D.mkDFA fst dfaRules dfaGoals
   where
     fstClose = eclose [(enfa^.fstState)] (enfa^.rules)
     fst :: D.State (Set a)
@@ -112,4 +118,5 @@ genDFA enfa = D.mkDFA fst dfaRules dfaGoal
     fstDFARules = genDFARule' fst enfaRules
     fstTmpStates = L.filter (\x -> x /= fst) $ L.map (\(D.Rule _ _ x) -> x) fstDFARules
     dfaRules = (genDFARule'' enfaRules fstDFARules [fst] fstTmpStates)
-    dfaGoal = L.nub $ L.filter (\(D.State t) -> any (\(D.State x) -> member x t) (enfa^.goalState)) $ [fst] ++ (L.map (\(D.Rule _ _ g) -> g) dfaRules)
+    tmpDfaGoals = L.nub $ L.filter (\(D.State t) -> any (\(D.GoalState (D.State x) _ _) -> member x t) (enfa^.goalState)) $ [fst] ++ (L.map (\(D.Rule _ _ g) -> g) dfaRules)
+    dfaGoals = L.map (\t -> genDFAGoalFromDFAState t (enfa^.goalState)) tmpDfaGoals

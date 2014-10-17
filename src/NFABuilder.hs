@@ -2,7 +2,7 @@
 module NFABuilder where
 
 import qualified Debug.Trace as Tr
-import qualified DFA as D (Input(Input), State(State))
+import qualified DFA as D (Input(Input), State(State), GoalState(GoalState), Label(Label), Priority)
 import qualified EpsilonNFA as N (Epsilon(Epsilon), Rule(Rule), EpsilonNFA(EpsilonNFA), mkEpsilonNFA)
 import qualified Reg as R (Reg, RegTerm(Is), RegExp(Or, And, Star, Lone, Some))
 
@@ -48,7 +48,7 @@ buildNFA' (Right (R.Some a)) st@(acc, s) = (newAcc, al + 1)
     epRule2 = N.Rule (D.State al) (Right N.Epsilon) (D.State (al + 1))
     newAcc = [epRule1, epRule2, epRule3] ++ acc1
 
-buildNFA :: Eq a => R.Reg a -> N.EpsilonNFA Int a
-buildNFA reg = N.mkEpsilonNFA (D.State 0) rules [(D.State last)]
+buildNFA :: Eq a => R.Reg a -> D.Priority -> D.Label b -> N.EpsilonNFA Int a b
+buildNFA reg p l = N.mkEpsilonNFA (D.State 0) rules [(D.GoalState (D.State last) p l)]
   where
     (rules, last) = buildNFA' reg ([], 0)

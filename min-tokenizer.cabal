@@ -48,7 +48,7 @@ cabal-version:       >=1.10
 
 library
   -- Modules exported by the library.
-  exposed-modules:     Tokenizer,DFA,NFA,EpsilonNFA,Reg,NFABuilder
+  exposed-modules:     Tokenizer,DFA,NFA,EpsilonNFA, Reg,NFABuilder
 
   -- Modules included in this library but not exported.
   -- other-modules:
