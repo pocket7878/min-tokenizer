@@ -7,7 +7,7 @@ module Reg where
 import  Text.Show.Functions
 import  qualified Data.List as L
 
-data RegTerm a = Is a deriving (Eq)
+data RegTerm a = Is a | Bracket [a] deriving (Eq)
 data RegExp  a = Or [Either (RegTerm a) (RegExp a)] | And [Either (RegTerm a) (RegExp a)] | Star (Either (RegTerm a) (RegExp a)) | Lone (Either (RegTerm a) (RegExp a)) | Some (Either (RegTerm a) (RegExp a)) deriving (Eq)
 type Reg a = (Either (RegTerm a) (RegExp a))
 
@@ -34,10 +34,14 @@ get :: (Eq a) => a -> Reg a
 get a = (Left (Is a))
 
 gets :: (Eq a) => [a] -> Reg a
-gets xs = (Right (And (map (\x -> (get x)) xs)))
+gets xs = (Right (And (map get xs)))
+
+getAny :: (Eq a) => [a] -> Reg a
+getAny xs = (Left (Bracket xs))
 
 instance Show a => Show (RegTerm a) where
     show (Is x) = show x
+    show (Bracket xs) = "[" ++ L.concatMap (\x -> (show x)) xs ++ "]"
 instance Show a => Show (RegExp a) where
     show (Or xs) = L.intercalate "+" (map (\x -> (show x)) xs)
     show (And xs) = L.intercalate "" (map (\x -> (show x)) xs)
