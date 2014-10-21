@@ -23,10 +23,10 @@ buildTokenizerENFA ts = mergedEnfa
     enfas = map (\t -> buildTokenModelENFA t) ts
     mergedEnfa = E.mergeEpsilonNFA enfas
 
-initDFA :: D.DFA (S.Set Int) b c -> D.DFA (S.Set Int) b c
+initDFA :: D.DFA a b c -> D.DFA a b c
 initDFA dfa = dfa {D._currState = (D._fstState dfa)}
 
-tokenizer' :: (Eq b) => D.DFA (S.Set Int) b c -> [(D.Input b)] -> [D.Input b] -> [D.Input b] -> [D.Input b] -> (Maybe ((D.Label c), [D.Input b])) -> [Maybe ((D.Label c), [D.Input b])]
+tokenizer' :: (Eq b) => D.DFA Int b c -> [(D.Input b)] -> [D.Input b] -> [D.Input b] -> [D.Input b] -> (Maybe ((D.Label c), [D.Input b])) -> [Maybe ((D.Label c), [D.Input b])]
 tokenizer' _ [] _ _ _ lastLabel = case lastLabel of
                                 Just l -> [Just l]
                                 Nothing -> []
@@ -44,14 +44,16 @@ tokenizer' dfa xs top bottom@(i:is) acc lastLabel = case newDFA of
     newDFA = D.updateDFA dfa i
     goalLabel = D.getLabel $ M.fromJust newDFA
 
-tokenizer :: [(a, [R.Reg b])] -> [Maybe (D.Label a)]
-tokenizer ts = undefined
+tokenizer :: (Eq a, Ord b) => [(a, [R.Reg b])] -> [b] -> [Maybe (D.Label a, [D.Input b])]
+tokenizer ts xs = tokenizer' tokenizerDFA inputs inputs inputs [] Nothing
+    where
+        inputs = map (\x -> (D.Input x)) xs
+        tokenModels = map (\((a, rs),p) -> TokenModel (D.Label a) p rs) $ zip ts [0..]
+        tokenizerDFA = E.genDFA (buildTokenizerENFA tokenModels)
 
 
-t1 = TokenModel (D.Label "IF") 1 [R.gets "if"]
-t2 = TokenModel (D.Label "ID") 0 [R.and [R.getAny ['h'..'j'], R.getAny ['h'..'j']]]
-enfa =buildTokenizerENFA [t1, t2]
-dfa = E.genDFA enfa
+t1 = ("IF", [R.gets "if"])
+t2 = ("ID", [R.and [R.getAny ['h'..'j'], R.getAny ['h'..'j']]])
+t3 = ("Error", [R.lone (R.getAny ['a'..'z'])])
 
-t3 = TokenModel (D.Label "Any") 1 [R.and [R.star (R.getAny ['h'..'j']), R.getAny ['h'..'j']]]
-dfa2 = E.genDFA (buildTokenizerENFA [t1, t3])
+tokenizerTest = tokenizer [t1, t2,t3] "iff"
