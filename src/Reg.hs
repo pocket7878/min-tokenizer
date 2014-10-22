@@ -7,48 +7,70 @@ module Reg where
 import  Text.Show.Functions
 import  qualified Data.List as L
 
-data RegTerm a = Is a | Bracket [a] deriving (Eq)
-data RegExp  a = Or [Either (RegTerm a) (RegExp a)] | And [Either (RegTerm a) (RegExp a)] | Star (Either (RegTerm a) (RegExp a)) | Lone (Either (RegTerm a) (RegExp a)) | Some (Either (RegTerm a) (RegExp a)) deriving (Eq)
-type Reg a = (Either (RegTerm a) (RegExp a))
+data RegTerm = Is Char | OneOf [Char] | NoneOf [Char] | Any deriving (Eq)
+data RegExp  = Or [Either RegTerm RegExp] | 
+                And [Either RegTerm RegExp] | 
+                Star (Either RegTerm RegExp) | 
+                Lone (Either RegTerm RegExp) | 
+                Some (Either RegTerm RegExp) deriving (Eq)
+type Reg = (Either RegTerm RegExp)
 
-star :: Reg a -> Reg a
+star :: Reg -> Reg
 star a = (Right (Star a))
 
-lone :: Reg a -> Reg a
+lone :: Reg -> Reg 
 lone a = (Right (Lone a))
 
-some :: Reg a -> Reg a
+some :: Reg -> Reg
 some a = (Right (Some a))
 
-and :: [Reg a] -> Reg a
+and :: [Reg] -> Reg
 and rs = (Right (And rs))
-(&&) :: [Reg a] -> Reg a
+(&&) :: [Reg] -> Reg
 (&&) = Reg.and
 
-or :: [Reg a] -> Reg a
+or :: [Reg] -> Reg
 or rs = (Right (Or rs))
-(||) :: [Reg a] -> Reg a
+(||) :: [Reg] -> Reg
 (||) = Reg.or
 
-get :: (Eq a) => a -> Reg a
+get :: Char -> Reg
 get a = (Left (Is a))
 
-gets :: (Eq a) => [a] -> Reg a
+gets :: [Char] -> Reg
 gets xs = (Right (And (map get xs)))
 
-getAny :: (Eq a) => [a] -> Reg a
-getAny xs = (Left (Bracket xs))
+oneOf :: [Char] -> Reg
+oneOf xs = (Left (OneOf xs))
 
-instance Show a => Show (RegTerm a) where
-    show (Is x) = show x
-    show (Bracket xs) = "[" ++ L.concatMap (\x -> (show x)) xs ++ "]"
-instance Show a => Show (RegExp a) where
+noneOf :: [Char] -> Reg
+noneOf xs = (Left (NoneOf xs))
+
+any :: Reg
+any = (Left Any)
+
+alphabetCls :: Reg
+alphabetCls = (Left (OneOf ['a'..'z']))
+
+digitCls :: Reg
+digitCls = (Left (OneOf ['0'..'9']))
+
+alnumCls :: Reg
+alnumCls = (Left (OneOf (['a'..'z']++['0'..'9'])))
+
+instance Show RegTerm where
+    show (Is x) = [x]
+    show (OneOf xs) = "[" ++ xs ++ "]"
+    show (NoneOf xs) = "[^" ++ xs ++ "]"
+    show Any = "."
+
+instance Show RegExp where
     show (Or xs) = L.intercalate "+" (map (\x -> (show x)) xs)
     show (And xs) = L.intercalate "" (map (\x -> (show x)) xs)
     show (Star a) = (show a) ++ "*"
     show (Lone a) = (show a) ++ "?"
     show (Some a) = (show a) ++ "+"
 
-instance Show a => Show (Reg a) where
+instance Show Reg where
     show (Left a) = show a
     show (Right a) = "(" ++ show a ++ ")"

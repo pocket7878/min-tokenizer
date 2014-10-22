@@ -6,11 +6,11 @@ import qualified DFA as D
 import qualified NFABuilder as B
 import qualified Control.Monad as M
 
-regTest :: (Eq a) => R.Reg a -> [([a],Bool)] -> IO ()
+regTest :: (Eq a, Ord a) => R.Reg a -> [([a],Bool)] -> IO ()
 regTest reg cases = M.mapM_ (\(is, res) -> do {N.accept enfa is `shouldBe` res;D.accept dfa is `shouldBe` res;}) cases
      where
        enfa = B.buildNFA reg 0 (D.Label "Reg")
-       dfa = N.genDFA enfa
+       dfa = D.minimize $ N.genDFA enfa
 
 main :: IO ()
 main = hspec $ do

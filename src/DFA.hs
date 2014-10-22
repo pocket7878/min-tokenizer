@@ -73,7 +73,7 @@ getLabel dfa = getLabel' matchedGoal
     getLabel' (x:y:xs) = Nothing
     getLabel' ((GoalState _ _ l):[]) = Just l
 
-checkDifference :: (Eq a, Eq b, Ord a, Show a, Show b) => State a -> State a -> [Input b] -> [Rule a b] -> M.Map (State a, State a) Bool -> Bool
+checkDifference :: (Eq a, Eq b, Ord a) => State a -> State a -> [Input b] -> [Rule a b] -> M.Map (State a, State a) Bool -> Bool
 checkDifference s1 s2 is rs etable = any (\i -> case ((nextState s1 i rs), (nextState s2 i rs)) of
                                                             (Nothing, Nothing) -> False
                                                             (Nothing, _) -> True
@@ -86,7 +86,7 @@ checkDifference s1 s2 is rs etable = any (\i -> case ((nextState s1 i rs), (next
                         Just (Rule _ _ t) -> Just t
                         Nothing -> Nothing
 
-rebuildDFAFromEqualityTable :: (Eq a, Ord a, Show a) => DFA a b c -> M.Map (State a, State a) Bool -> DFA Int b c
+rebuildDFAFromEqualityTable :: (Eq a, Ord a) => DFA a b c -> M.Map (State a, State a) Bool -> DFA Int b c
 rebuildDFAFromEqualityTable dfa etable = mkDFA newFstState newRules newGoals
   where
     (newIdTable, _) = M.foldlWithKey
@@ -108,7 +108,7 @@ rebuildDFAFromEqualityTable dfa etable = mkDFA newFstState newRules newGoals
     newGoals = map (\(GoalState g p l) -> (GoalState (State (newIdTable M.! g)) p l)) (dfa^.goalState)
 
 
-minimize' :: (Eq a, Eq b, Ord a, Show a, Show b) => DFA a b c -> [Input b] -> M.Map (State a, State a) Bool -> DFA Int b c
+minimize' :: (Eq a, Eq b, Ord a) => DFA a b c -> [Input b] -> M.Map (State a, State a) Bool -> DFA Int b c
 minimize' dfa is equalityTable = if updated
                                    then minimize' dfa is newEqualityTable
                                    else rebuildDFAFromEqualityTable dfa newEqualityTable
@@ -133,7 +133,7 @@ genInitialEtable dfa = etable
     all = allStates dfa
     etable = M.fromList $ map (\pair@(s1, s2) -> (pair, (goalStatep s1 (dfa^.goalState)) || (goalStatep s2 (dfa^.goalState)))) $ [(x, y) | x <- all, y <- all, x /= y]
 
-minimize :: (Eq a, Eq b, Ord a, Eq c, Show a, Show b) => DFA a b c -> DFA Int b c
+minimize :: (Eq a, Eq b, Ord a, Eq c) => DFA a b c -> DFA Int b c
 minimize dfa = minimize' dfa (genAlphabets (dfa^.rules)) (genInitialEtable dfa)
 
 

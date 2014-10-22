@@ -139,7 +139,7 @@ genDFAGoalFromDFAState as gi gs = if (goalStates == [])
                                               else Just (D.GoalState (D.State gi) goalPriority goalLabel)
   where
     goalStates = L.filter (\(D.GoalState g _ _) -> elem g as) gs
-    (D.GoalState _ goalPriority goalLabel) = maximum goalStates
+    (D.GoalState _ goalPriority goalLabel) = minimum goalStates
 
 type RuleMap a b = M.Map (D.Input b) [ENFARule a b]
 

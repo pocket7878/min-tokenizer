@@ -57,7 +57,7 @@ library
   other-extensions:    TemplateHaskell, ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances, OverlappingInstances
 
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.7 && <5, lens >=4.4 && <5, containers >=0.5 && <0.6
+  build-depends:       base >=4.7 && <5, lens >=4.4 && <5, containers >=0.5 && <0.6, charset >= 0.3.7 && < 0.4
 
   -- Directories containing source files.
   hs-source-dirs:      src/
